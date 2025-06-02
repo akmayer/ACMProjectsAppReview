@@ -4,38 +4,28 @@ import { gapi } from 'gapi-script';
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 const SHEET_ID = '1UmwPGwSHKtmO9baNfPkftoZ7BboQ56xc9ud4YXpty0Y';
-const RANGE = 'Form Responses 1!A1:B2';
-
+const RANGE = "'Form Responses 1'!A1:B2"; // quotes are needed if sheet name has spaces
 
 export default function GoogleSheetViewer() {
   const [data, setData] = useState<string[][]>([]);
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
-    gapi.load('client:auth2', async () => {
-      await gapi.client.init({
-        clientId: CLIENT_ID,
-        scope: SCOPES,
-      });
+    gapi.load('client:auth2', () => {
+      gapi.client
+        .init({
+          clientId: CLIENT_ID,
+          scope: SCOPES,
+        })
+        .then(() => {
+            const auth = gapi.auth2.getAuthInstance();
+            setUserName(auth.currentUser.get().getBasicProfile().getName());
 
-      const auth = gapi.auth2.getAuthInstance();
-      setIsSignedIn(auth.isSignedIn.get());
-
-      auth.isSignedIn.listen(setIsSignedIn);
-
-      if (auth.isSignedIn.get()) {
-        loadSheetData();
-      }
+            loadSheetData();
+        });
     });
   }, []);
 
-  const signIn = () => {
-    gapi.auth2.getAuthInstance().signIn();
-  };
-
-  const signOut = () => {
-    gapi.auth2.getAuthInstance().signOut();
-  };
 
   const loadSheetData = async () => {
     await gapi.client.load('sheets', 'v4');
@@ -48,27 +38,23 @@ export default function GoogleSheetViewer() {
   };
 
   return (
-    <div className="p-4 font-mono text-sm">
-      {isSignedIn ? (
-        <table className="border border-black">
-          <tbody>
-            {[0, 1].map((i) => (
-              <tr key={i}>
-                {[0, 1].map((j) => (
-                  <td key={j} className="border border-black px-2 py-1">
-                    {(data[i] && data[i][j]) || ''}
-                  </td>
-                ))}
-              </tr>
+    <div>
+        <h1 className="text-2xl font-bold">
+          {userName ? `Reviewing as ${userName}` : 'Logged out'}
+        </h1>
+    <table className="border border-black">
+    <tbody>
+        {[0, 1].map((i) => (
+        <tr key={i}>
+            {[0, 1].map((j) => (
+            <td key={j} className="border border-black px-2 py-1">
+                {(data[i] && data[i][j]) || ''}
+            </td>
             ))}
-          </tbody>
-        </table>
-      ) : (
-        <button onClick={signIn} className="px-4 py-2 bg-blue-600 text-white rounded">
-          Sign In
-        </button>
-      )}
+        </tr>
+        ))}
+    </tbody>
+    </table>
     </div>
   );
-  
 }
