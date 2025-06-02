@@ -35,21 +35,17 @@ export default function GoogleSheetViewer() {
 
   const loadSheetData = async (row: number) => {
     await gapi.client.load('sheets', 'v4');
-
-    // Load headers (row 1)
-    const headerRes = await gapi.client.sheets.spreadsheets.values.get({
+  
+    const range = `${SHEET_NAME}!A1:BG${row}`;
+    const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A1:BG1`, // Adjust range as needed
+      range,
     });
-
-    // Load target row
-    const answerRes = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A${row}:BG${row}`, // Row X only
-    });
-
-    setHeaders(headerRes.result.values?.[0] || []);
-    setAnswers(answerRes.result.values?.[0] || []);
+  
+    const rows = res.result.values || [];
+  
+    setHeaders(rows[0] || []);
+    setAnswers(rows[row - 1] || []); 
   };
 
   return (
