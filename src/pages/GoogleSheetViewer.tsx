@@ -362,12 +362,12 @@ export default function GoogleSheetViewer() {
                   <h2 className="text-xl font-bold text-gray-900">AI Questions</h2>
                 </div>
                 {headers.slice(17, 25).map((question, i) => (
-                  <div key={i + 11} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div key={i + 17} className="p-6 hover:bg-gray-50 transition-colors">
                     <div className="mb-2">
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 11] ? linkifyText(answers[i + 11]) : (
+                      {answers[i + 17] ? linkifyText(answers[i + 17]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
