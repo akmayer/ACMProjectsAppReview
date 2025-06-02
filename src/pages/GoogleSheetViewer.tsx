@@ -6,7 +6,7 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 const SHEET_ID = '1UmwPGwSHKtmO9baNfPkftoZ7BboQ56xc9ud4YXpty0Y';
 const SHEET_NAME = "'Form Responses 1'";
-const REFRESH_INTERVAL = 5000; // 20 seconds
+const REFRESH_INTERVAL = 20000;
 
 export default function GoogleSheetViewer() {
   const [headers, setHeaders] = useState<string[]>([]);
