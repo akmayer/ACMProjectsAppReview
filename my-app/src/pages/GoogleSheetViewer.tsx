@@ -54,26 +54,62 @@ export default function GoogleSheetViewer() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">
-        {userName ? `Reviewing as ${userName}` : 'Logged out'}
-      </h1>
+      <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            {userName ? `Reviewing as ${userName}` : 'Logged out'}
+          </h1>
+          <div className="space-x-3">
+            {(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) > 1 && (
+              <a 
+                href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) - 1}`}
+                className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+              >
+                ← Previous Response
+              </a>
+            )}
+            <a 
+              href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) + 1}`}
+              className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+            >
+              Next Response →
+            </a>
+          </div>
+        </div>
 
-      <table className="table-auto border border-black">
-        <thead>
-          <tr>
-            <th className="border border-black px-2 py-1 text-left">Question</th>
-            <th className="border border-black px-2 py-1 text-left">Answer</th>
-          </tr>
-        </thead>
-        <tbody>
-          {headers.map((question, i) => (
-            <tr key={i}>
-              <td className="border border-black px-2 py-1">{question}</td>
-              <td className="border border-black px-2 py-1">{answers[i] || ''}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="divide-y divide-gray-200">
+            {headers.map((question, i) => (
+              <div key={i} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="mb-2">
+                  <h3 className="text-lg font-medium text-gray-900">{question}</h3>
+                </div>
+                <div className="text-gray-700 whitespace-pre-wrap">
+                  {answers[i] || (
+                    <span className="text-gray-400 italic">No answer provided</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-x-3">
+            {(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) > 1 && (
+              <a 
+                href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) - 1}`}
+                className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+              >
+                ← Previous Response
+              </a>
+            )}
+            <a 
+              href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) + 1}`}
+              className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+            >
+              Next Response →
+            </a>
+          </div>
+      </div>
     </div>
   );
 }

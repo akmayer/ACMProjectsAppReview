@@ -44,11 +44,13 @@ export default function Home() {
   
   return (
     <div>
-      
       {isSignedIn ? (
         <div>
           <h1 className="text-2xl font-bold">Signed in for review as: {userName}</h1>
-          <button onClick={signOut} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">Sign Out</button>
+          <div className="space-x-4">
+            <button onClick={signOut} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">Sign Out</button>
+            <a href="/review" className="inline-block px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">Continue to Review</a>
+          </div>
         </div>
       ) : (
         <div>
