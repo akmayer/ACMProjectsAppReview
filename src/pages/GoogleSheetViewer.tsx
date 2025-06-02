@@ -36,7 +36,7 @@ export default function GoogleSheetViewer() {
   const loadSheetData = async (row: number) => {
     await gapi.client.load('sheets', 'v4');
   
-    const range = `${SHEET_NAME}!A1:BG${row}`;
+    const range = `${SHEET_NAME}!A1:BH${row}`;
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range,
@@ -75,7 +75,7 @@ export default function GoogleSheetViewer() {
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="divide-y divide-gray-200">
-            {headers.map((question, i) => (
+            {headers.slice(0, -1).map((question, i) => (
               <div key={i} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="mb-2">
                   <h3 className="text-lg font-medium text-gray-900">{question}</h3>
@@ -89,6 +89,20 @@ export default function GoogleSheetViewer() {
             ))}
           </div>
         </div>
+
+        <div className="mt-8 bg-gray-100 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Reviewer Comments</h2>
+            <div className="text-gray-700 whitespace-pre-wrap">
+              {answers[answers.length - 1] || (
+                <span className="text-gray-400 italic">No comments yet</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+
+        
         <div className="space-x-3">
             {(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) > 1 && (
               <a 

@@ -60,18 +60,18 @@ export default function Home() {
   };
   
   return (
-    <div>
+    <div className="min-h-screen flex items-center justify-center">
       {isSignedIn ? (
-        <div>
-          <h1 className="text-2xl font-bold">Signed in for review as: {userName}</h1>
-          <div className="space-x-4">
+        <div className="text-center flex flex-col items-center">
+          <h1 className="text-2xl font-bold mb-4">Signed in for review as: {userName}</h1>
+          <div className="space-x-4 flex justify-center">
             <button onClick={signOut} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">Sign Out</button>
             <a href="/review" className="inline-block px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">Continue to Review</a>
           </div>
         </div>
       ) : (
-        <div>
-          <h1 className="text-2xl font-bold">Sign In With Your ACMUCSD Email For Access</h1>
+        <div className="text-center flex flex-col items-center">
+          <h1 className="text-2xl font-bold mb-4">Sign In With Your ACMUCSD Email For Access</h1>
           <button onClick={signIn} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">Sign In</button>
         </div>
       )}
