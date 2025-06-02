@@ -203,6 +203,33 @@ export default function GoogleSheetViewer() {
     return ` (#${priority} Priority)`;
   };
 
+  // Helper function to convert URLs to clickable links
+  const linkifyText = (text: string) => {
+    if (!text) return text;
+    
+    // URL regex pattern
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    
+    // Split text by URLs and map to elements
+    const parts = text.split(urlPattern);
+    return parts.map((part, index) => {
+      if (part.match(urlPattern)) {
+        return (
+          <a 
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="p-4">
       {showConflictWarning && (
@@ -314,7 +341,7 @@ export default function GoogleSheetViewer() {
                   <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                 </div>
                 <div className="text-gray-700 whitespace-pre-wrap">
-                  {answers[i] || (
+                  {answers[i] ? linkifyText(answers[i]) : (
                     <span className="text-gray-400 italic">No answer provided</span>
                   )}
                 </div>
@@ -333,7 +360,7 @@ export default function GoogleSheetViewer() {
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 11] || (
+                      {answers[i + 11] ? linkifyText(answers[i + 11]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
@@ -354,7 +381,7 @@ export default function GoogleSheetViewer() {
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 25] || (
+                      {answers[i + 25] ? linkifyText(answers[i + 25]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
@@ -375,7 +402,7 @@ export default function GoogleSheetViewer() {
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 34] || (
+                      {answers[i + 34] ? linkifyText(answers[i + 34]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
@@ -396,7 +423,7 @@ export default function GoogleSheetViewer() {
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 47] || (
+                      {answers[i + 47] ? linkifyText(answers[i + 47]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
@@ -415,7 +442,7 @@ export default function GoogleSheetViewer() {
                   <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                 </div>
                 <div className="text-gray-700 whitespace-pre-wrap">
-                  {answers[i + 53] || (
+                  {answers[i + 53] ? linkifyText(answers[i + 53]) : (
                     <span className="text-gray-400 italic">No answer provided</span>
                   )}
                 </div>

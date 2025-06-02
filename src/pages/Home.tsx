@@ -5,11 +5,21 @@ import { gapi } from 'gapi-script';
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
-
 export default function Home() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [gapiReady, setGapiReady] = useState(false)
   const [userName, setUserName] = useState('');
+  const [forceUpdate, setForceUpdate] = useState(0);
+
+  // Force refresh every second when not signed in
+  useEffect(() => {
+    if (!isSignedIn) {
+      const interval = setInterval(() => {
+        setForceUpdate(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isSignedIn]);
 
   useEffect(() => {
     gapi.load('client:auth2', () => {
