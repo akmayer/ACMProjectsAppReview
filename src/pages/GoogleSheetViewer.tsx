@@ -63,8 +63,14 @@ export default function GoogleSheetViewer() {
         const rows = res.result.values || [];
         const currentRow = rows[rowIndex - 1] || [];
         
-        // Check if data has changed
-        if (JSON.stringify(currentRow) !== JSON.stringify(lastDataRef.current)) {
+        // Check if data has changed, ignoring empty/null values
+        const hasChanged = currentRow.some((value: string | null | undefined, index: number) => {
+          const currentValue = value || '';
+          const previousValue = lastDataRef.current[index] || '';
+          return currentValue !== previousValue;
+        });
+
+        if (hasChanged) {
           if (isEditing) {
             // If editing, show conflict warning
             setNewData(currentRow);
@@ -139,9 +145,10 @@ export default function GoogleSheetViewer() {
       });
 
       const existingValue = currentValue.result.values?.[0]?.[0] || '';
+      const currentAnswerValue = answers[columnIndex - 1] || '';
       
       // If the value has changed since we started editing, show conflict warning
-      if (existingValue !== answers[columnIndex - 1]) {
+      if (existingValue !== currentAnswerValue) {
         setNewData([...answers.slice(0, -1), existingValue]);
         setShowConflictWarning(true);
         return;
