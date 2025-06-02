@@ -18,14 +18,28 @@ export default function Home() {
         scope: SCOPES,
       }).then(() => {
         const auth = gapi.auth2.getAuthInstance();
+  
+        const handleUserChange = () => {
+          const user = auth.currentUser.get();
+          if (user && user.isSignedIn()) {
+            const profile = user.getBasicProfile();
+            setUserName(profile?.getName() || '');
+          }
+        };
+  
         setIsSignedIn(auth.isSignedIn.get());
-        auth.isSignedIn.listen(setIsSignedIn);
+        if (auth.isSignedIn.get()) handleUserChange();
+  
+        auth.isSignedIn.listen((signedIn: boolean) => {
+          setIsSignedIn(signedIn);
+          if (signedIn) {
+            handleUserChange();
+          } else {
+            setUserName('');
+          }
+        });
+  
         setGapiReady(true);
-        const user = auth.currentUser.get();
-        if (user) {
-          const profile = user.getBasicProfile();
-          setUserName(profile.getName());
-        }
       });
     });
   }, []);
