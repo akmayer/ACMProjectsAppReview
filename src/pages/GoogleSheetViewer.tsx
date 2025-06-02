@@ -18,6 +18,12 @@ export default function GoogleSheetViewer() {
   const [showConflictWarning, setShowConflictWarning] = useState(false);
   const [newData, setNewData] = useState<string[] | null>(null);
   const lastDataRef = useRef<string[]>([]);
+  const [visibleSections, setVisibleSections] = useState({
+    ai: true,
+    design: true,
+    hack: true,
+    gameDev: true
+  });
 
   useEffect(() => {
     gapi.load('client:auth2', () => {
@@ -125,6 +131,23 @@ export default function GoogleSheetViewer() {
 
     try {
       const columnLetter = getColumnLetter(columnIndex);
+      
+      // First, get the current value to check for conflicts
+      const currentValue = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: `${SHEET_NAME}!${columnLetter}${rowIndex}`,
+      });
+
+      const existingValue = currentValue.result.values?.[0]?.[0] || '';
+      
+      // If the value has changed since we started editing, show conflict warning
+      if (existingValue !== answers[columnIndex - 1]) {
+        setNewData([...answers.slice(0, -1), existingValue]);
+        setShowConflictWarning(true);
+        return;
+      }
+
+      // If no conflict, proceed with saving
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
         range: `${SHEET_NAME}!${columnLetter}${rowIndex}`,
@@ -143,6 +166,41 @@ export default function GoogleSheetViewer() {
       console.error('Error saving comment:', error);
       alert('Failed to save comment. Please try again.');
     }
+  };
+
+  // Function to determine section priorities
+  const getSectionPriorities = () => {
+    const priorities: { [key: string]: number } = {};
+    const priorityResponses = answers.slice(13, 17); // Questions 14-17 (0-based index)
+    
+    priorityResponses.forEach((response, index) => {
+      if (response) {
+        const section = response.toLowerCase();
+        if (['ai', 'hack', 'game dev', 'design'].includes(section)) {
+          priorities[section === 'game dev' ? 'gameDev' : section] = index + 1;
+        }
+      }
+    });
+    
+    return priorities;
+  };
+
+  useEffect(() => {
+    const priorities = getSectionPriorities();
+    setVisibleSections({
+      ai: priorities.ai !== undefined,
+      design: priorities.design !== undefined,
+      hack: priorities.hack !== undefined,
+      gameDev: priorities.gameDev !== undefined
+    });
+  }, [answers]);
+
+  // Function to get priority label
+  const getPriorityLabel = (section: string) => {
+    const priorities = getSectionPriorities();
+    const priority = priorities[section];
+    if (priority === undefined) return '';
+    return ` (#${priority} Priority)`;
   };
 
   return (
@@ -180,6 +238,50 @@ export default function GoogleSheetViewer() {
           <h1 className="text-2xl font-bold text-gray-800 mb-4">
             {userName ? `Reviewing as ${userName}` : 'Logged out'}
           </h1>
+          
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setVisibleSections(prev => ({ ...prev, ai: !prev.ai }))}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                visibleSections.ai 
+                  ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {visibleSections.ai ? `Hide AI${getPriorityLabel('ai')}` : 'Show AI'}
+            </button>
+            <button
+              onClick={() => setVisibleSections(prev => ({ ...prev, design: !prev.design }))}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                visibleSections.design 
+                  ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {visibleSections.design ? `Hide Design${getPriorityLabel('design')}` : 'Show Design'}
+            </button>
+            <button
+              onClick={() => setVisibleSections(prev => ({ ...prev, hack: !prev.hack }))}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                visibleSections.hack 
+                  ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {visibleSections.hack ? `Hide Hack${getPriorityLabel('hack')}` : 'Show Hack'}
+            </button>
+            <button
+              onClick={() => setVisibleSections(prev => ({ ...prev, gameDev: !prev.gameDev }))}
+              className={`px-4 py-2 rounded-md transition-colors ${
+                visibleSections.gameDev 
+                  ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {visibleSections.gameDev ? `Hide Game Dev${getPriorityLabel('gameDev')}` : 'Show Game Dev'}
+            </button>
+          </div>
+
           {!isEditing && (
             <div className="space-x-3">
               {(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) > 1 && (
@@ -202,13 +304,118 @@ export default function GoogleSheetViewer() {
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="divide-y divide-gray-200">
-            {headers.slice(0, -1).map((question, i) => (
+            {/* General Questions */}
+            <div className="bg-gray-50 p-4">
+              <h2 className="text-xl font-bold text-gray-900">General Questions</h2>
+            </div>
+            {headers.slice(0, 17).map((question, i) => (
               <div key={i} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="mb-2">
                   <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                 </div>
                 <div className="text-gray-700 whitespace-pre-wrap">
                   {answers[i] || (
+                    <span className="text-gray-400 italic">No answer provided</span>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* AI Questions */}
+            {visibleSections.ai && (
+              <>
+                <div className="bg-gray-50 p-4">
+                  <h2 className="text-xl font-bold text-gray-900">AI Questions</h2>
+                </div>
+                {headers.slice(17, 25).map((question, i) => (
+                  <div key={i + 11} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="mb-2">
+                      <h3 className="text-lg font-medium text-gray-900">{question}</h3>
+                    </div>
+                    <div className="text-gray-700 whitespace-pre-wrap">
+                      {answers[i + 11] || (
+                        <span className="text-gray-400 italic">No answer provided</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Design Questions */}
+            {visibleSections.design && (
+              <>
+                <div className="bg-gray-50 p-4">
+                  <h2 className="text-xl font-bold text-gray-900">Design Questions</h2>
+                </div>
+                {headers.slice(25, 34).map((question, i) => (
+                  <div key={i + 25} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="mb-2">
+                      <h3 className="text-lg font-medium text-gray-900">{question}</h3>
+                    </div>
+                    <div className="text-gray-700 whitespace-pre-wrap">
+                      {answers[i + 25] || (
+                        <span className="text-gray-400 italic">No answer provided</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Hack Questions */}
+            {visibleSections.hack && (
+              <>
+                <div className="bg-gray-50 p-4">
+                  <h2 className="text-xl font-bold text-gray-900">Hack Questions</h2>
+                </div>
+                {headers.slice(34, 47).map((question, i) => (
+                  <div key={i + 34} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="mb-2">
+                      <h3 className="text-lg font-medium text-gray-900">{question}</h3>
+                    </div>
+                    <div className="text-gray-700 whitespace-pre-wrap">
+                      {answers[i + 34] || (
+                        <span className="text-gray-400 italic">No answer provided</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Game Dev Questions */}
+            {visibleSections.gameDev && (
+              <>
+                <div className="bg-gray-50 p-4">
+                  <h2 className="text-xl font-bold text-gray-900">Game Dev Questions</h2>
+                </div>
+                {headers.slice(47, 53).map((question, i) => (
+                  <div key={i + 47} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="mb-2">
+                      <h3 className="text-lg font-medium text-gray-900">{question}</h3>
+                    </div>
+                    <div className="text-gray-700 whitespace-pre-wrap">
+                      {answers[i + 47] || (
+                        <span className="text-gray-400 italic">No answer provided</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Other Questions */}
+            <div className="bg-gray-50 p-4">
+              <h2 className="text-xl font-bold text-gray-900">Other Questions</h2>
+            </div>
+            {headers.slice(53, 59).map((question, i) => (
+              <div key={i + 53} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="mb-2">
+                  <h3 className="text-lg font-medium text-gray-900">{question}</h3>
+                </div>
+                <div className="text-gray-700 whitespace-pre-wrap">
+                  {answers[i + 53] || (
                     <span className="text-gray-400 italic">No answer provided</span>
                   )}
                 </div>
