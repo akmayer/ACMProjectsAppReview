@@ -49,7 +49,10 @@ export default function Home() {
       console.warn("Google API not ready yet.");
       return;
     }
-    gapi.auth2.getAuthInstance().signIn();
+  
+    gapi.auth2.getAuthInstance().signIn({
+      prompt: 'select_account'
+    });
   };
 
   const signOut = () => {
