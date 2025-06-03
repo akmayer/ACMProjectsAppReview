@@ -8,17 +8,23 @@ const SHEET_ID = '1UmwPGwSHKtmO9baNfPkftoZ7BboQ56xc9ud4YXpty0Y';
 const SHEET_NAME = "'Form Responses 1'";
 const REFRESH_INTERVAL = 20000;
 
+interface SheetRow {
+  data: string[];
+  index: number;
+}
+
 export default function GoogleSheetViewer() {
   const [headers, setHeaders] = useState<string[]>([]);
-  const [answers, setAnswers] = useState<string[]>([]);
+  const [allRows, setAllRows] = useState<SheetRow[]>([]);
+  const [filteredRows, setFilteredRows] = useState<SheetRow[]>([]);
+  const [currentRow, setCurrentRow] = useState<string[]>([]);
   const [, setUserName] = useState('');
   const [searchParams] = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [showConflictWarning, setShowConflictWarning] = useState(false);
   const [newData, setNewData] = useState<string[] | null>(null);
-  const [showLastApplicant, setShowLastApplicant] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const lastDataRef = useRef<string[]>([]);
   const [visibleSections, setVisibleSections] = useState({
     ai: true,
@@ -27,6 +33,7 @@ export default function GoogleSheetViewer() {
     gameDev: true
   });
 
+  // Load all sheet data initially
   useEffect(() => {
     gapi.load('client:auth2', () => {
       gapi.client
@@ -37,92 +44,110 @@ export default function GoogleSheetViewer() {
         .then(async () => {
           const auth = gapi.auth2.getAuthInstance();
           setUserName(auth.currentUser.get().getBasicProfile().getName());
-
-          const pageParam = searchParams.get('q');
-          const pageNum = pageParam ? parseInt(pageParam) : 1;
-          const rowIndex = pageNum + 1; 
-
-          await loadSheetData(rowIndex);
+          await loadAllSheetData();
         });
     });
-  }, [searchParams]);
+  }, []);
+
+  // Filter rows based on name parameter and update current row based on page number
+  useEffect(() => {
+    if (allRows.length === 0) return;
+
+    const nameFilter = searchParams.get('name');
+    const pageParam = searchParams.get('q');
+    const pageNum = pageParam ? parseInt(pageParam) : 1;
+
+    // Filter rows if name parameter exists
+    const filtered = nameFilter
+      ? allRows.filter(row => row.data[13]?.toLowerCase().trim() === nameFilter.toLowerCase().trim())
+      : allRows;
+
+    setFilteredRows(filtered);
+
+    // Set current row based on page number
+    const currentIndex = pageNum - 1;
+    if (currentIndex >= 0 && currentIndex < filtered.length) {
+      const row = filtered[currentIndex];
+      setCurrentRow(row.data);
+      lastDataRef.current = row.data;
+      const lastColumnIndex = headers.length - 1;
+      setCommentText(row.data[lastColumnIndex] || '');
+    }
+  }, [allRows, searchParams, headers.length]);
 
   // Set up auto-refresh interval
   useEffect(() => {
     const intervalId = setInterval(async () => {
-      const pageParam = searchParams.get('q');
-      const pageNum = pageParam ? parseInt(pageParam) : 1;
-      const rowIndex = pageNum + 1;
-      
       try {
         await gapi.client.load('sheets', 'v4');
-        const range = `${SHEET_NAME}!A1:BH${rowIndex}`;
+        const range = `${SHEET_NAME}!A1:BH`;
         const res = await gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: SHEET_ID,
           range,
         });
         
         const rows = res.result.values || [];
-        const currentRow = rows[rowIndex - 1] || [];
-        
-        // Check if data has changed, ignoring empty/null values
-        const hasChanged = currentRow.some((value: string | null | undefined, index: number) => {
-          const currentValue = value || '';
-          const previousValue = lastDataRef.current[index] || '';
-          return currentValue !== previousValue;
-        });
+        if (rows.length === 0) return;
 
-        if (hasChanged) {
-          if (isEditing) {
-            // If editing, show conflict warning
-            setNewData(currentRow);
-            setShowConflictWarning(true);
-          } else {
-            // If not editing, update smoothly
-            updateDataSmoothly(currentRow);
+        const newRows = rows.slice(1).map((row: string[], index: number) => ({
+          data: row,
+          index: index + 1
+        }));
+
+        // Check if current row has changed
+        const currentPage = searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1;
+        const currentIndex = currentPage - 1;
+        const currentFilteredRow = filteredRows[currentIndex];
+        
+        if (currentFilteredRow) {
+          const newRow = newRows.find((r: SheetRow) => r.index === currentFilteredRow.index);
+          if (newRow) {
+            const hasChanged = newRow.data.some((value: string | null | undefined, index: number) => {
+              const currentValue = value || '';
+              const previousValue = lastDataRef.current[index] || '';
+              return currentValue !== previousValue;
+            });
+
+            if (hasChanged) {
+              if (isEditing) {
+                setNewData(newRow.data);
+                setShowConflictWarning(true);
+              } else {
+                updateDataSmoothly(newRow.data);
+              }
+            }
           }
         }
+
+        setAllRows(newRows);
       } catch (error) {
         console.error('Error checking for updates:', error);
       }
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [isEditing, searchParams]);
+  }, [isEditing, searchParams, filteredRows]);
 
-  const updateDataSmoothly = (newRow: string[]) => {
-    lastDataRef.current = newRow;
-    setAnswers(newRow);
-    const lastColumnIndex = headers.length - 1;
-    setCommentText(newRow[lastColumnIndex] || '');
-  };
-
-  const loadSheetData = async (row: number) => {
+  const loadAllSheetData = async () => {
     setIsLoading(true);
     try {
       await gapi.client.load('sheets', 'v4');
     
-      const range = `${SHEET_NAME}!A1:BH${row}`;
+      const range = `${SHEET_NAME}!A1:BH`;
       const res = await gapi.client.sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
         range,
       });
     
       const rows = res.result.values || [];
-      console.log('Loaded rows:', rows);
-      console.log('Headers length:', rows[0]?.length);
-      console.log('Answers length:', rows[row - 1]?.length);
-    
-      setHeaders(rows[0] || []);
-      const currentRow = rows[row - 1] || [];
-      lastDataRef.current = currentRow;
-      setAnswers(currentRow);
-      const lastColumnIndex = rows[0]?.length - 1;
-      setCommentText(currentRow[lastColumnIndex] || '');
+      if (rows.length === 0) return;
 
-      // Only check for empty responses after data is loaded
-      const allEmpty = currentRow.every((answer: string | null | undefined) => !answer || answer.trim() === '');
-      setShowLastApplicant(allEmpty);
+      setHeaders(rows[0] || []);
+      const newRows = rows.slice(1).map((row: string[], index: number) => ({
+        data: row,
+        index: index + 1
+      }));
+      setAllRows(newRows);
     } catch (error) {
       console.error('Error loading sheet data:', error);
     } finally {
@@ -130,10 +155,22 @@ export default function GoogleSheetViewer() {
     }
   };
 
+  const updateDataSmoothly = (newRow: string[]) => {
+    lastDataRef.current = newRow;
+    setCurrentRow(newRow);
+    const lastColumnIndex = headers.length - 1;
+    setCommentText(newRow[lastColumnIndex] || '');
+  };
+
   const saveComment = async () => {
     const pageParam = searchParams.get('q');
     const pageNum = pageParam ? parseInt(pageParam) : 1;
-    const rowIndex = pageNum + 1;
+    const currentIndex = pageNum - 1;
+    const currentFilteredRow = filteredRows[currentIndex];
+    
+    if (!currentFilteredRow) return;
+
+    const rowIndex = currentFilteredRow.index + 1; // +1 because we skipped header row
     const columnIndex = headers.length; // Last column
 
     // Convert column index to letter (e.g., 1 = A, 2 = B, 27 = AA, etc.)
@@ -158,11 +195,11 @@ export default function GoogleSheetViewer() {
       });
 
       const existingValue = currentValue.result.values?.[0]?.[0] || '';
-      const currentAnswerValue = answers[columnIndex - 1] || '';
+      const currentAnswerValue = currentRow[columnIndex - 1] || '';
       
       // If the value has changed since we started editing, show conflict warning
       if (existingValue !== currentAnswerValue) {
-        setNewData([...answers.slice(0, -1), existingValue]);
+        setNewData([...currentRow.slice(0, -1), existingValue]);
         setShowConflictWarning(true);
         return;
       }
@@ -178,9 +215,9 @@ export default function GoogleSheetViewer() {
       });
 
       // Update local state
-      const newAnswers = [...answers];
+      const newAnswers = [...currentRow];
       newAnswers[columnIndex - 1] = commentText;
-      setAnswers(newAnswers);
+      setCurrentRow(newAnswers);
       setIsEditing(false);
     } catch (error) {
       console.error('Error saving comment:', error);
@@ -191,7 +228,7 @@ export default function GoogleSheetViewer() {
   // Function to determine section priorities
   const getSectionPriorities = () => {
     const priorities: { [key: string]: number } = {};
-    const priorityResponses = answers.slice(13, 17); // Questions 14-17 (0-based index)
+    const priorityResponses = currentRow.slice(13, 17); // Questions 14-17 (0-based index)
     
     priorityResponses.forEach((response, index) => {
       if (response) {
@@ -213,7 +250,7 @@ export default function GoogleSheetViewer() {
       hack: priorities.hack !== undefined,
       gameDev: priorities.gameDev !== undefined
     });
-  }, [answers]);
+  }, [currentRow]);
 
   // Function to get priority label
   const getPriorityLabel = (section: string) => {
@@ -259,31 +296,6 @@ export default function GoogleSheetViewer() {
 
   return (
     <div className="p-4">
-      {!isLoading && showLastApplicant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-4">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Last Applicant Reached</h3>
-            <p className="text-gray-700 mb-4">
-              You have reached the last applicant in the list.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <a
-                href="/review?q=1"
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-              >
-                Go to First Applicant
-              </a>
-              <a
-                href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) - 1}`}
-                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-              >
-                Go to Previous Applicant
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showConflictWarning && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-4">
@@ -315,7 +327,7 @@ export default function GoogleSheetViewer() {
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            {answers[2] ? `Reviewing Applicant: ${answers[2]}` : 'Loading...'}
+            {currentRow[2] ? `Reviewing Applicant: ${currentRow[2]}` : 'Loading...'}
           </h1>
           
           <div className="flex gap-2 mb-4">
@@ -361,30 +373,32 @@ export default function GoogleSheetViewer() {
             </button>
           </div>
           <div className="flex justify-end mb-4">
-          <button
+            <button
               onClick={scrollToComments}
               className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
             >
               Jump to Comments
-          </button>
+            </button>
           </div>
 
           {!isEditing && (
             <div className="space-x-3">
               {(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) > 1 && (
                 <a 
-                  href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) - 1}`}
+                  href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) - 1}${searchParams.get('name') ? `&name=${searchParams.get('name')}` : ''}`}
                   className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
                 >
                   ← Previous Response
                 </a>
               )}
-              <a 
-                href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) + 1}`}
-                className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
-              >
-                Next Response →
-              </a>
+              {filteredRows.length > (searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) && (
+                <a 
+                  href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) + 1}${searchParams.get('name') ? `&name=${searchParams.get('name')}` : ''}`}
+                  className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+                >
+                  Next Response →
+                </a>
+              )}
             </div>
           )}
         </div>
@@ -401,7 +415,7 @@ export default function GoogleSheetViewer() {
                   <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                 </div>
                 <div className="text-gray-700 whitespace-pre-wrap">
-                  {answers[i] ? linkifyText(answers[i]) : (
+                  {currentRow[i] ? linkifyText(currentRow[i]) : (
                     <span className="text-gray-400 italic">No answer provided</span>
                   )}
                 </div>
@@ -420,7 +434,7 @@ export default function GoogleSheetViewer() {
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 17] ? linkifyText(answers[i + 17]) : (
+                      {currentRow[i + 17] ? linkifyText(currentRow[i + 17]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
@@ -441,7 +455,7 @@ export default function GoogleSheetViewer() {
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 25] ? linkifyText(answers[i + 25]) : (
+                      {currentRow[i + 25] ? linkifyText(currentRow[i + 25]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
@@ -462,7 +476,7 @@ export default function GoogleSheetViewer() {
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 34] ? linkifyText(answers[i + 34]) : (
+                      {currentRow[i + 34] ? linkifyText(currentRow[i + 34]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
@@ -483,7 +497,7 @@ export default function GoogleSheetViewer() {
                       <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                     </div>
                     <div className="text-gray-700 whitespace-pre-wrap">
-                      {answers[i + 47] ? linkifyText(answers[i + 47]) : (
+                      {currentRow[i + 47] ? linkifyText(currentRow[i + 47]) : (
                         <span className="text-gray-400 italic">No answer provided</span>
                       )}
                     </div>
@@ -502,7 +516,7 @@ export default function GoogleSheetViewer() {
                   <h3 className="text-lg font-medium text-gray-900">{question}</h3>
                 </div>
                 <div className="text-gray-700 whitespace-pre-wrap">
-                  {answers[i + 53] ? linkifyText(answers[i + 53]) : (
+                  {currentRow[i + 53] ? linkifyText(currentRow[i + 53]) : (
                     <span className="text-gray-400 italic">No answer provided</span>
                   )}
                 </div>
@@ -528,7 +542,7 @@ export default function GoogleSheetViewer() {
                     onClick={() => {
                       setIsEditing(false);
                       const lastColumnIndex = headers.length - 1;
-                      setCommentText(answers[lastColumnIndex] || '');
+                      setCommentText(currentRow[lastColumnIndex] || '');
                     }}
                     className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors shadow-sm"
                   >
@@ -552,7 +566,7 @@ export default function GoogleSheetViewer() {
               />
             ) : (
               <div className="text-gray-700 whitespace-pre-wrap">
-                {answers[headers.length - 1] || (
+                {currentRow[headers.length - 1] || (
                   <span className="text-gray-400 italic">No comments yet</span>
                 )}
               </div>
@@ -565,18 +579,20 @@ export default function GoogleSheetViewer() {
             <>
               {(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) > 1 && (
                 <a 
-                  href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) - 1}`}
+                  href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) - 1}${searchParams.get('name') ? `&name=${searchParams.get('name')}` : ''}`}
                   className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
                 >
                   ← Previous Response
                 </a>
               )}
-              <a 
-                href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) + 1}`}
-                className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
-              >
-                Next Response →
-              </a>
+              {filteredRows.length > (searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) && (
+                <a 
+                  href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) + 1}${searchParams.get('name') ? `&name=${searchParams.get('name')}` : ''}`}
+                  className="inline-block px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+                >
+                  Next Response →
+                </a>
+              )}
             </>
           )}
         </div>
