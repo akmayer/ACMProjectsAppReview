@@ -237,6 +237,13 @@ export default function GoogleSheetViewer() {
     });
   };
 
+  const scrollToComments = () => {
+    const commentsSection = document.querySelector('.comments-section');
+    if (commentsSection) {
+      commentsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="p-4">
       {showConflictWarning && (
@@ -270,7 +277,7 @@ export default function GoogleSheetViewer() {
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            {userName ? `Reviewing as ${userName}` : 'Logged out'}
+            {answers[2] ? `Reviewing Applicant: ${answers[2]}` : 'Loading...'}
           </h1>
           
           <div className="flex gap-2 mb-4">
@@ -314,6 +321,14 @@ export default function GoogleSheetViewer() {
             >
               {visibleSections.gameDev ? `Hide Game Dev${getPriorityLabel('gameDev')}` : 'Show Game Dev'}
             </button>
+          </div>
+          <div className="flex justify-end mb-4">
+          <button
+              onClick={scrollToComments}
+              className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
+            >
+              Jump to Comments
+          </button>
           </div>
 
           {!isEditing && (
@@ -458,7 +473,7 @@ export default function GoogleSheetViewer() {
           </div>
         </div>
 
-        <div className="mt-8 bg-gray-100 rounded-lg shadow-lg overflow-hidden">
+        <div className="mt-8 bg-gray-100 rounded-lg shadow-lg overflow-hidden comments-section">
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900">Reviewer Comments</h2>
