@@ -9,13 +9,13 @@ export default function Home() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [gapiReady, setGapiReady] = useState(false)
   const [userName, setUserName] = useState('');
-  const [forceUpdate, setForceUpdate] = useState(0);
+  const [, setUpdateTime] = useState(0);
 
   // Force refresh every second when not signed in
   useEffect(() => {
     if (!isSignedIn) {
       const interval = setInterval(() => {
-        setForceUpdate(prev => prev + 1);
+        setUpdateTime(Date.now());
       }, 1000);
       return () => clearInterval(interval);
     }
