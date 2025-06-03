@@ -11,7 +11,7 @@ const REFRESH_INTERVAL = 20000;
 export default function GoogleSheetViewer() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [answers, setAnswers] = useState<string[]>([]);
-  const [userName, setUserName] = useState('');
+  const [, setUserName] = useState('');
   const [searchParams] = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
   const [commentText, setCommentText] = useState('');
