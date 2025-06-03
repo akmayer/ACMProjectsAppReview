@@ -17,6 +17,8 @@ export default function GoogleSheetViewer() {
   const [commentText, setCommentText] = useState('');
   const [showConflictWarning, setShowConflictWarning] = useState(false);
   const [newData, setNewData] = useState<string[] | null>(null);
+  const [showLastApplicant, setShowLastApplicant] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const lastDataRef = useRef<string[]>([]);
   const [visibleSections, setVisibleSections] = useState({
     ai: true,
@@ -96,25 +98,36 @@ export default function GoogleSheetViewer() {
   };
 
   const loadSheetData = async (row: number) => {
-    await gapi.client.load('sheets', 'v4');
-  
-    const range = `${SHEET_NAME}!A1:BH${row}`;
-    const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range,
-    });
-  
-    const rows = res.result.values || [];
-    console.log('Loaded rows:', rows);
-    console.log('Headers length:', rows[0]?.length);
-    console.log('Answers length:', rows[row - 1]?.length);
-  
-    setHeaders(rows[0] || []);
-    const currentRow = rows[row - 1] || [];
-    lastDataRef.current = currentRow;
-    setAnswers(currentRow);
-    const lastColumnIndex = rows[0]?.length - 1;
-    setCommentText(currentRow[lastColumnIndex] || '');
+    setIsLoading(true);
+    try {
+      await gapi.client.load('sheets', 'v4');
+    
+      const range = `${SHEET_NAME}!A1:BH${row}`;
+      const res = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range,
+      });
+    
+      const rows = res.result.values || [];
+      console.log('Loaded rows:', rows);
+      console.log('Headers length:', rows[0]?.length);
+      console.log('Answers length:', rows[row - 1]?.length);
+    
+      setHeaders(rows[0] || []);
+      const currentRow = rows[row - 1] || [];
+      lastDataRef.current = currentRow;
+      setAnswers(currentRow);
+      const lastColumnIndex = rows[0]?.length - 1;
+      setCommentText(currentRow[lastColumnIndex] || '');
+
+      // Only check for empty responses after data is loaded
+      const allEmpty = currentRow.every((answer: string | null | undefined) => !answer || answer.trim() === '');
+      setShowLastApplicant(allEmpty);
+    } catch (error) {
+      console.error('Error loading sheet data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const saveComment = async () => {
@@ -246,6 +259,31 @@ export default function GoogleSheetViewer() {
 
   return (
     <div className="p-4">
+      {!isLoading && showLastApplicant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-4">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Last Applicant Reached</h3>
+            <p className="text-gray-700 mb-4">
+              You have reached the last applicant in the list.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <a
+                href="/review?q=1"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              >
+                Go to First Applicant
+              </a>
+              <a
+                href={`/review?q=${(searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1) - 1}`}
+                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+              >
+                Go to Previous Applicant
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showConflictWarning && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-4">
