@@ -329,6 +329,9 @@ export default function GoogleSheetViewer() {
           <h1 className="text-2xl font-bold text-gray-800 mb-4">
             {currentRow[2] ? `Reviewing Applicant: ${currentRow[2]}` : 'Loading...'}
           </h1>
+          <h1 className="text-md font-bold text-gray-800 mb-4">
+            {currentRow[2] ? `${searchParams.get('q') ? parseInt(searchParams.get('q')!) : 1} of ${filteredRows.length}` : ''}
+          </h1>
           
           <div className="flex gap-2 mb-4">
             <button
